@@ -6,6 +6,7 @@ target/
 /src/main/java/META-INF/
 /mvnw
 /mvnw.cmd
+/.mvn/
 
 ### STS ###
 .apt_generated
