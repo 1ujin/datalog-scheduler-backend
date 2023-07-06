@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cesi.datalogscheduler.mapper.TesterMapper">
+    <sql id="tester_table">
+        cesi.tester
+    </sql>
+
+    <select id="findAll" resultType="com.cesi.datalogscheduler.entity.Tester">
+        SELECT *
+        FROM <include refid="tester_table"/>
+    </select>
+
+    <insert id="insert" keyColumn="id" useGeneratedKeys="true" parameterType="com.cesi.datalogscheduler.entity.Tester">
+        INSERT INTO <include refid="tester_table"/>(`NAME`, PINYIN, ABBREVIATION, GENDER, AGE)
+        <foreach collection="list" item="item" separator="),(" open="VALUES (" close=")" nullable="true">
+            <if test="item != null and item.name != null and item.pinyin != null and item.abbreviation != null">
+                #{item.name}, #{item.pinyin}, #{item.abbreviation}, #{item.gender}, #{item.age}
+            </if>
+        </foreach>
+    </insert>
+
+    <delete id="delete" parameterType="com.cesi.datalogscheduler.entity.Tester">
+        DELETE FROM <include refid="tester_table"/>
+        WHERE ID IN
+        <if test="list != null and list.size() != 0">
+            <foreach collection="list" item="item" separator="," open="(" close=")" nullable="true">
+                <if test="item != null and item.id != null">
+                    #{item.id}
+                </if>
+            </foreach>
+        </if>
+    </delete>
+
+    <update id="update" keyColumn="id" useGeneratedKeys="true" parameterType="com.cesi.datalogscheduler.entity.Tester">
+        <foreach collection="list" item="item" separator=";" close=";" nullable="true">
+            <if test="item != null and item.id != null">
+                UPDATE <include refid="tester_table"/>
+                <set>
+                    <if test="item.name != null and item.name != ''">
+                        `NAME`=#{item.name},
+                    </if>
+                    <if test="item.pinyin != null and item.pinyin != ''">
+                        PINYIN=#{item.pinyin},
+                    </if>
+                    <if test="item.abbreviation != null and item.abbreviation != ''">
+                        ABBREVIATION=#{item.abbreviation},
+                    </if>
+                    GENDER=#{item.gender}, AGE=#{item.age}
+                </set>
+                <where>
+                    <if test="item.id != null">
+                        ID=#{item.id}
+                    </if>
+                </where>
+            </if>
+        </foreach>
+    </update>
+</mapper>

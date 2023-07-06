@@ -1,0 +1,597 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cesi.datalogscheduler.mapper.ResultInfoMapper">
+    <sql id="result_info_table">
+        cesi.result_info
+    </sql>
+    <sql id="tester_table">
+        cesi.tester
+    </sql>
+    <sql id="calendar_table">
+        cesi.calendar
+    </sql>
+    <!-- 入库时间范围 -->
+    <sql id="create_time_scope">
+        <if test="beginDate != null and beginDate != ''">
+            AND CREATE_TIME &gt;= DATE_ADD(#{beginTime}, INTERVAL '8 30' HOUR_MINUTE)
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND CREATE_TIME &lt;= DATE_ADD(#{endTime}, INTERVAL '8 30' HOUR_MINUTE)
+        </if>
+    </sql>
+
+    <!-- 测试时间范围 -->
+    <sql id="test_begin_time_scope">
+        <if test="beginDate != null and beginDate != ''">
+            AND TEST_BEGIN_TIME &gt;= #{beginDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND TEST_BEGIN_TIME &lt;= #{endDate}
+        </if>
+    </sql>
+
+    <!-- 测试时间 + 测试人员姓名 + 机台编号 -->
+    <sql id="test_time_tester_name_computer_name">
+        <include refid="test_begin_time_scope"/>
+        <if test="testerNames != null and testerNames.size() != 0">
+            AND b.NAME IN
+            <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
+                <if test="testerNames != null and testerName != ''">
+                    #{testerName}
+                </if>
+            </foreach>
+        </if>
+        <if test="computerName != null and computerName != ''">
+            AND COMPUTER_NAME = #{computerName}
+        </if>
+    </sql>
+
+    <sql id="test_time_tester_name_computer_name1">
+        <include refid="test_begin_time_scope"/>
+        <if test="testerNames != null and testerNames.size() != 0">
+            AND b1.NAME IN
+            <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
+                <if test="testerNames != null and testerName != ''">
+                    #{testerName}
+                </if>
+            </foreach>
+        </if>
+        <if test="computerName != null and computerName != ''">
+            AND COMPUTER_NAME = #{computerName}
+        </if>
+    </sql>
+
+    <sql id="test_time_tester_name_computer_name2">
+        <include refid="test_begin_time_scope"/>
+        <if test="testerNames != null and testerNames.size() != 0">
+            AND b2.NAME IN
+            <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
+                <if test="testerNames != null and testerName != ''">
+                    #{testerName}
+                </if>
+            </foreach>
+        </if>
+        <if test="computerName != null and computerName != ''">
+            AND COMPUTER_NAME = #{computerName}
+        </if>
+    </sql>
+
+    <!-- 查询全部型号 -->
+    <select id="getAllModels" resultType="String">
+        SELECT MODEL FROM <include refid="result_info_table"/> GROUP BY MODEL;
+    </select>
+
+    <!-- 查询全部 -->
+    <select id="findAll" resultType="com.cesi.datalogscheduler.entity.ResultInfo">
+        SELECT a.*, b.NAME AS TESTER_NAME
+        FROM <include refid="result_info_table"/> AS a
+                 JOIN <include refid="tester_table"/> AS b ON a.TESTER_NAME_ABBR = b.ABBREVIATION
+        <where>
+            <include refid="test_time_tester_name_computer_name"/>
+        </where>
+        ORDER BY a.CREATE_TIME DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAll" resultType="java.lang.Integer">
+        SELECT COUNT(1) AS TESTER_NAME
+        FROM <include refid="result_info_table"/> AS a
+                 JOIN <include refid="tester_table"/> AS b ON a.TESTER_NAME_ABBR = b.ABBREVIATION
+        <where>
+            <include refid="test_time_tester_name_computer_name"/>
+        </where>
+    </select>
+
+    <select id="countByDay" resultType="com.cesi.datalogscheduler.entity.ResultCount">
+        SELECT IFNULL(c.`count`, 0) AS count, d.`NAME`, d.`date`
+            FROM (SELECT COUNT(1) AS `count`, `NAME`, TEST_BEGIN_TIME AS `date`
+                FROM <include refid="result_info_table"/> AS a
+                JOIN <include refid="tester_table"/> AS b
+                ON a.TESTER_NAME_ABBR = b.ABBREVIATION
+                <where>
+                    RESULT_TYPE = 'PROCESS'
+                    <include refid="test_time_tester_name_computer_name"/>
+                </where>
+                GROUP BY `NAME`, `date`) AS c
+            RIGHT JOIN (SELECT `NAME`, `date2` AS `date`
+                FROM <include refid="tester_table"/> CROSS JOIN <include refid="calendar_table"/>
+                <where>
+                    <if test="beginDate != null">
+                        AND `date2` &gt;= #{beginDate}
+                    </if>
+                    <if test="endDate != null">
+                        AND `date2` &lt;= #{endDate}
+                    </if>
+                    <if test="testerNames != null and testerNames.size() != 0">
+                        AND `NAME` IN
+                        <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
+                            <if test="testerNames != null and testerName != ''">
+                                #{testerName}
+                            </if>
+                        </foreach>
+                    </if>
+                </where>
+                GROUP BY `NAME`, `date`) AS d
+            ON c.`date` = d.`date` AND c.`NAME` = d.`NAME`
+            ORDER BY d.`date`, d.`NAME`
+    </select>
+
+    <select id="countByWeek" resultType="com.cesi.datalogscheduler.entity.ResultCount">
+        SELECT IFNULL(c.`count`, 0) AS count, d.`NAME`, d.`year_week`, d.`week_begin`, d.`week_end`
+            FROM (SELECT COUNT(1) AS `count`, `NAME`, YEARWEEK(TEST_BEGIN_TIME) AS `week`
+                FROM <include refid="result_info_table"/> AS a
+                JOIN <include refid="tester_table"/> AS b
+                ON a.TESTER_NAME_ABBR = b.ABBREVIATION
+                <where>
+                    RESULT_TYPE = 'PROCESS'
+                    <include refid="test_time_tester_name_computer_name"/>
+                </where>
+                GROUP BY `NAME`, `week`) AS c
+            RIGHT JOIN (SELECT `NAME`, `year_week`, `week_begin`, `week_end`
+                FROM <include refid="tester_table"/> CROSS JOIN <include refid="calendar_table"/>
+                <where>
+                    <if test="beginDate != null">
+                        AND `year_week` &gt;= YEARWEEK(#{beginDate})
+                    </if>
+                    <if test="endDate != null">
+                        AND `year_week` &lt;= YEARWEEK(#{endDate})
+                    </if>
+                    <if test="testerNames != null and testerNames.size() != 0">
+                        AND `NAME` IN
+                        <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
+                            <if test="testerNames != null and testerName != ''">
+                                #{testerName}
+                            </if>
+                        </foreach>
+                    </if>
+                </where>
+                GROUP BY `NAME`, `year_week`, `week_begin`, `week_end`) AS d
+            ON c.`week` = d.`year_week` AND c.`NAME` = d.`NAME`
+            ORDER BY d.`year_week`, d.`NAME`
+    </select>
+
+    <select id="countByMonth" resultType="com.cesi.datalogscheduler.entity.ResultCount">
+        SELECT IFNULL(c.`count`, 0) AS count, d.`NAME`, d.`year_month`
+            FROM (SELECT COUNT(1) AS `count`, `NAME`, EXTRACT(YEAR_MONTH FROM TEST_BEGIN_TIME) AS `month`
+                FROM <include refid="result_info_table"/> AS a
+                JOIN <include refid="tester_table"/> AS b
+                ON a.TESTER_NAME_ABBR = b.ABBREVIATION
+                <where>
+                    RESULT_TYPE = 'PROCESS'
+                    <include refid="test_time_tester_name_computer_name"/>
+                </where>
+                GROUP BY `NAME`, `month`) AS c
+            RIGHT JOIN (SELECT `NAME`, `year_month`
+                FROM <include refid="tester_table"/> CROSS JOIN <include refid="calendar_table"/>
+                <where>
+                    <if test="beginDate != null">
+                        AND `year_month` &gt;= EXTRACT(YEAR_MONTH FROM DATE(#{beginDate}))
+                    </if>
+                    <if test="endDate != null">
+                        AND `year_month` &lt;= EXTRACT(YEAR_MONTH FROM DATE(#{endDate}))
+                    </if>
+                    <if test="testerNames != null and testerNames.size() != 0">
+                        AND `NAME` IN
+                        <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
+                            <if test="testerNames != null and testerName != ''">
+                                #{testerName}
+                            </if>
+                        </foreach>
+                    </if>
+                </where>
+                GROUP BY `NAME`, `year_month`) AS d
+            ON c.`month` = d.`year_month` AND c.`NAME` = d.`NAME`
+            ORDER BY d.`year_month`, d.`NAME`
+    </select>
+
+    <!-- 插入 -->
+    <insert id="insert" keyColumn="id" useGeneratedKeys="true" parameterType="com.cesi.datalogscheduler.entity.ResultInfo">
+        INSERT INTO <include refid="result_info_table"/>(MODEL, BATCH, AGING_PHASE, AGING_END_TIME, TEST_BEGIN_TIME, TEMPERATURE, JD_GROUP, TESTER_NAME_ABBR, CHIP_ID, PATH, DUPLICATE_PATH, SURFACE_RESULT, REAL_RESULT, `SYSTEM`, COMPUTER_NAME, RESULT_TYPE, ERROR, FILESIZE, TEST_SUITE, CREATE_TIME)
+        VALUES (#{model}, #{batch}, #{agingPhase}, #{agingEndTime}, #{testBeginTime}, #{temperature}, #{jdGroup}, #{testerNameAbbr}, #{chipId}, #{path}, #{duplicatePath}, #{surfaceResult}, #{realResult}, #{system}, #{computerName}, #{resultType}, #{error}, #{filesize}, #{testSuite}, #{createTime})
+    </insert>
+
+    <insert id="multiInsert" keyColumn="id" useGeneratedKeys="true" parameterType="com.cesi.datalogscheduler.entity.ResultInfo">
+        INSERT INTO <include refid="result_info_table"/>(MODEL, BATCH, AGING_PHASE, AGING_END_TIME, TEST_BEGIN_TIME, TEMPERATURE, JD_GROUP,
+        TESTER_NAME_ABBR, CHIP_ID, PATH, DUPLICATE_PATH, SURFACE_RESULT, REAL_RESULT, `SYSTEM`, COMPUTER_NAME,
+        RESULT_TYPE, ERROR, FILESIZE, TEST_SUITE, CREATE_TIME)
+        <foreach collection="list" item="item" separator="),(" open="VALUES (" close=")" nullable="true">
+            #{item.model}, #{item.batch}, #{item.agingPhase}, #{item.agingEndTime}, #{item.testBeginTime},
+            #{item.temperature}, #{item.jdGroup}, #{item.testerNameAbbr}, #{item.chipId}, #{item.path},
+            #{item.duplicatePath}, #{item.surfaceResult}, #{item.realResult}, #{item.system}, #{item.computerName},
+            #{item.resultType}, #{item.error}, #{item.filesize}, #{item.testSuite}, #{item.createTime}
+        </foreach>
+    </insert>
+
+    <!-- 命名规则错误 -->
+
+    <!-- 文件名重复 -->
+    <select id="duplicateFilename" resultType="com.cesi.datalogscheduler.entity.ResultInfo">
+        SELECT a.*, b.NAME AS TESTER_NAME FROM <include refid="result_info_table"/> AS a JOIN <include refid="tester_table"/> AS b ON a.TESTER_NAME_ABBR = b.ABBREVIATION
+        <where>
+            DUPLICATE_PATH IS NOT NULL
+            <if test="model != null and model != ''">
+                AND MODEL = #{model}
+            </if>
+            <include refid="test_time_tester_name_computer_name"/>
+        </where>
+    </select>
+
+    <select id="duplicateFilenameCount" resultType="com.cesi.datalogscheduler.entity.ResultCount">
+        SELECT IFNULL(c.count, 0) AS count, d.`NAME`
+        FROM (SELECT COUNT(a.ID) AS count, b.`NAME`
+        FROM <include refid="result_info_table"/> AS a
+        JOIN <include refid="tester_table"/> AS b ON a.TESTER_NAME_ABBR = b.ABBREVIATION
+        <where>
+            a.DUPLICATE_PATH IS NOT NULL
+            <if test="model != null and model != ''">
+                AND MODEL = #{model}
+            </if>
+            <include refid="test_time_tester_name_computer_name"/>
+        </where>
+        GROUP BY b.`NAME`) AS c
+        RIGHT JOIN <include refid="tester_table"/> AS d ON c.`NAME` = d.`NAME`
+        <where>
+            <if test="testerNames != null and testerNames.size() != 0">
+                AND d.`NAME` IN
+                <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
+                    <if test="testerNames != null and testerName != ''">
+                        #{testerName}
+                    </if>
+                </foreach>
+            </if>
+        </where>
+    </select>
+
+    <!-- 文件内容错误 -->
+    <select id="errorContent" resultType="com.cesi.datalogscheduler.entity.ResultInfo">
+        SELECT a.*, b.NAME AS TESTER_NAME FROM <include refid="result_info_table"/> AS a JOIN <include refid="tester_table"/> AS b ON a.TESTER_NAME_ABBR = b.ABBREVIATION
+        <where>
+            ERROR = 1
+            <if test="model != null and model != ''">
+                AND MODEL = #{model}
+            </if>
+            <include refid="test_time_tester_name_computer_name"/>
+        </where>
+    </select>
+
+    <select id="errorContentCount" resultType="com.cesi.datalogscheduler.entity.ResultCount">
+        SELECT IFNULL(c.count, 0) AS count, d.`NAME`
+        FROM (SELECT COUNT(a.ID) AS count, b.`NAME`
+        FROM <include refid="result_info_table"/> AS a
+        JOIN <include refid="tester_table"/> AS b ON a.TESTER_NAME_ABBR = b.ABBREVIATION
+        <where>
+            a.`ERROR` = 1
+            <if test="model != null and model != ''">
+                AND MODEL = #{model}
+            </if>
+            <include refid="test_time_tester_name_computer_name"/>
+        </where>
+        GROUP BY b.`NAME`) AS c
+        RIGHT JOIN <include refid="tester_table"/> AS d ON c.`NAME` = d.`NAME`
+        <where>
+            <if test="testerNames != null and testerNames.size() != 0">
+                AND d.`NAME` IN
+                <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
+                    <if test="testerNames != null and testerName != ''">
+                        #{testerName}
+                    </if>
+                </foreach>
+            </if>
+        </where>
+    </select>
+
+    <!-- Passed存成Failed -->
+    <select id="passedToFailed" resultType="com.cesi.datalogscheduler.entity.ResultInfo">
+        SELECT a.*, b.NAME AS TESTER_NAME FROM <include refid="result_info_table"/> AS a JOIN <include refid="tester_table"/> AS b ON a.TESTER_NAME_ABBR = b.ABBREVIATION
+        <where>
+            SURFACE_RESULT = 'FAILED'
+            AND REAL_RESULT = 'PASSED'
+            <if test="model != null and model != ''">
+                AND MODEL = #{model}
+            </if>
+            <include refid="test_time_tester_name_computer_name"/>
+        </where>
+    </select>
+
+    <select id="passedToFailedCount" resultType="com.cesi.datalogscheduler.entity.ResultCount">
+        SELECT IFNULL(c.count, 0) AS count, d.`NAME`
+        FROM (SELECT COUNT(a.ID) AS count, b.`NAME`
+        FROM <include refid="result_info_table"/> AS a
+        JOIN <include refid="tester_table"/> AS b ON a.TESTER_NAME_ABBR = b.ABBREVIATION
+        <where>
+            SURFACE_RESULT = 'FAILED'
+            AND REAL_RESULT = 'PASSED'
+            <if test="model != null and model != ''">
+                AND MODEL = #{model}
+            </if>
+            <include refid="test_time_tester_name_computer_name"/>
+        </where>
+        GROUP BY b.`NAME`) AS c
+        RIGHT JOIN <include refid="tester_table"/> AS d ON c.`NAME` = d.`NAME`
+        <where>
+            <if test="testerNames != null and testerNames.size() != 0">
+                AND d.`NAME` IN
+                <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
+                    <if test="testerNames != null and testerName != ''">
+                        #{testerName}
+                    </if>
+                </foreach>
+            </if>
+        </where>
+    </select>
+
+    <!-- Failed存成Passed -->
+    <select id="failedToPassed" resultType="com.cesi.datalogscheduler.entity.ResultInfo">
+        SELECT a.*, b.NAME AS TESTER_NAME FROM <include refid="result_info_table"/> AS a JOIN <include refid="tester_table"/> AS b ON a.TESTER_NAME_ABBR = b.ABBREVIATION
+        <where>
+            SURFACE_RESULT = 'PASSED'
+            AND REAL_RESULT = 'FAILED'
+            <if test="model != null and model != ''">
+                AND MODEL = #{model}
+            </if>
+            <include refid="test_time_tester_name_computer_name"/>
+        </where>
+    </select>
+
+    <select id="failedToPassedCount" resultType="com.cesi.datalogscheduler.entity.ResultCount">
+        SELECT IFNULL(c.count, 0) AS count, d.`NAME`
+        FROM (SELECT COUNT(a.ID) AS count, b.`NAME`
+        FROM <include refid="result_info_table"/> AS a
+        JOIN <include refid="tester_table"/> AS b ON a.TESTER_NAME_ABBR = b.ABBREVIATION
+        <where>
+            SURFACE_RESULT = 'PASSED'
+            AND REAL_RESULT = 'FAILED'
+            <if test="model != null and model != ''">
+                AND MODEL = #{model}
+            </if>
+            <include refid="test_time_tester_name_computer_name"/>
+        </where>
+        GROUP BY b.`NAME`) AS c
+        RIGHT JOIN <include refid="tester_table"/> AS d ON c.`NAME` = d.`NAME`
+        <where>
+            <if test="testerNames != null and testerNames.size() != 0">
+                AND d.`NAME` IN
+                <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
+                    <if test="testerNames != null and testerName != ''">
+                        #{testerName}
+                    </if>
+                </foreach>
+            </if>
+        </where>
+    </select>
+
+    <!-- 以下文件测试项与大多数不一致 -->
+    <sql id="test_suite_error_condition">
+        AND TEST_SUITE IN (
+            SELECT TEST_SUITE
+                FROM (SELECT TEST_SUITE, COUNT( 1 ) AS cnt
+                    FROM <include refid="result_info_table"/> AS a1
+                    JOIN <include refid="tester_table"/> AS b1 ON a1.TESTER_NAME_ABBR = b1.ABBREVIATION
+                    <where>
+                        SURFACE_RESULT = 'PASSED'
+                        <include refid="test_time_tester_name_computer_name1"/>
+                        <if test="model != null and model != ''">
+                            AND MODEL = #{model}
+                        </if>
+                    </where>
+                    GROUP BY TEST_SUITE ORDER BY cnt DESC LIMIT 1, 18446744073709551615) AS t)
+    </sql>
+
+    <select id="testSuiteError" resultType="com.cesi.datalogscheduler.entity.ResultInfo">
+        SELECT a2.*, b2.NAME AS TESTER_NAME
+            FROM <include refid="result_info_table"/> AS a2
+            JOIN <include refid="tester_table"/> AS b2
+            ON a2.TESTER_NAME_ABBR = b2.ABBREVIATION
+            <where>
+                SURFACE_RESULT = 'PASSED'
+                <include refid="test_time_tester_name_computer_name2"/>
+                <if test="model != null and model != ''">
+                    AND MODEL = #{model}
+                </if>
+                <include refid="test_suite_error_condition"/>
+            </where>
+    </select>
+
+    <select id="testSuiteErrorCount" resultType="com.cesi.datalogscheduler.entity.ResultCount">
+        SELECT IFNULL(c.count, 0) AS count, d.`NAME` FROM (
+            SELECT COUNT(1) AS count, b2.NAME AS TESTER_NAME, a2.MODEL
+                FROM <include refid="result_info_table"/> AS a2
+                JOIN <include refid="tester_table"/> AS b2
+                ON a2.TESTER_NAME_ABBR = b2.ABBREVIATION
+                <where>
+                    SURFACE_RESULT = 'PASSED'
+                    <include refid="test_time_tester_name_computer_name2"/>
+                    <if test="model != null and model != ''">
+                        AND MODEL = #{model}
+                    </if>
+                    <include refid="test_suite_error_condition"/>
+                </where>
+                GROUP BY b2.NAME) AS c RIGHT JOIN <include refid="tester_table"/> AS d ON c.TESTER_NAME = d.`NAME`
+            <where>
+                <if test="testerNames != null and testerNames.size() != 0">
+                    AND d.`NAME` IN
+                    <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
+                        <if test="testerNames != null and testerName != ''">
+                            #{testerName}
+                        </if>
+                    </foreach>
+                </if>
+            </where>
+    </select>
+
+    <!-- 以下文件大小与大多数不一致 -->
+    <sql id="filesize_error_condition">
+        AND ABS(FILESIZE - (
+            SELECT FILESIZE AS most
+                FROM (SELECT FILESIZE, COUNT(1) AS cnt
+                    FROM <include refid="result_info_table"/> AS a1
+                    JOIN <include refid="tester_table"/> AS b1
+                    ON a1.TESTER_NAME_ABBR = b1.ABBREVIATION
+                    <where>
+                        SURFACE_RESULT = 'PASSED'
+                        <include refid="test_time_tester_name_computer_name1"/>
+                        <if test="model != null and model != ''">
+                            AND MODEL = #{model}
+                        </if>
+                    </where>
+                    GROUP BY FILESIZE
+                    ORDER BY cnt DESC LIMIT 1) AS t)) > 1000
+    </sql>
+
+    <select id="filesizeError" resultType="com.cesi.datalogscheduler.entity.ResultInfo">
+        SELECT a2.*, b2.NAME AS TESTER_NAME
+            FROM <include refid="result_info_table"/> AS a2
+            JOIN <include refid="tester_table"/> AS b2
+            ON a2.TESTER_NAME_ABBR = b2.ABBREVIATION
+            <where>
+                SURFACE_RESULT = 'PASSED'
+                <include refid="test_time_tester_name_computer_name2"/>
+                <if test="model != null and model != ''">
+                    AND MODEL = #{model}
+                </if>
+                <include refid="filesize_error_condition"/>
+            </where>
+    </select>
+
+    <select id="filesizeErrorCount" resultType="com.cesi.datalogscheduler.entity.ResultCount">
+        SELECT IFNULL(c.count, 0) AS count, d.`NAME` FROM (
+            SELECT COUNT(1) AS count, b2.NAME AS TESTER_NAME, a2.MODEL
+                FROM <include refid="result_info_table"/> AS a2
+                JOIN <include refid="tester_table"/> AS b2
+                ON a2.TESTER_NAME_ABBR = b2.ABBREVIATION
+                <where>
+                    SURFACE_RESULT = 'PASSED'
+                    <include refid="test_time_tester_name_computer_name2"/>
+                    <if test="model != null and model != ''">
+                        AND MODEL = #{model}
+                    </if>
+                    <include refid="filesize_error_condition"/>
+                </where>
+                GROUP BY b2.NAME) AS c RIGHT JOIN <include refid="tester_table"/> AS d ON c.TESTER_NAME = d.`NAME`
+            <where>
+                <if test="testerNames != null and testerNames.size() != 0">
+                    AND d.`NAME` IN
+                    <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
+                        <if test="testerNames != null and testerName != ''">
+                            #{testerName}
+                        </if>
+                    </foreach>
+                </if>
+            </where>
+    </select>
+
+    <!-- 以下结果文件缺失对应的报告文件 -->
+    <select id="missReport" resultType="com.cesi.datalogscheduler.entity.ResultInfo">
+        SELECT a.*, b.NAME AS TESTER_NAME, COUNT( 1 ) AS cnt FROM <include refid="result_info_table"/> AS a JOIN <include refid="tester_table"/> AS b ON a.TESTER_NAME_ABBR = b.ABBREVIATION
+        <where>
+            <include refid="test_time_tester_name_computer_name"/>
+        </where>
+        GROUP BY MODEL, BATCH, AGING_PHASE, AGING_END_TIME, TEST_BEGIN_TIME, TEMPERATURE, JD_GROUP, TESTER_NAME_ABBR, CHIP_ID, PATH, DUPLICATE_PATH, RESULT_TYPE
+        HAVING cnt = 1 AND RESULT_TYPE != 'REPORT'
+    </select>
+
+    <select id="missReportCount" resultType="com.cesi.datalogscheduler.entity.ResultCount">
+        SELECT COUNT(c.count) AS count, d.MODEL, d.`NAME` FROM (
+        SELECT COUNT( 1 ) AS count, MODEL, RESULT_TYPE, b1.NAME FROM <include refid="result_info_table"/> AS a1 JOIN <include refid="tester_table"/> AS b1 ON a1.TESTER_NAME_ABBR = b1.ABBREVIATION
+        <where>
+            <if test="model != null and model != ''">
+                AND MODEL = #{model}
+            </if>
+            <include refid="test_time_tester_name_computer_name1"/>
+        </where>
+        GROUP BY MODEL, BATCH, AGING_PHASE, AGING_END_TIME, TEST_BEGIN_TIME, TEMPERATURE, JD_GROUP, TESTER_NAME_ABBR, CHIP_ID, PATH, DUPLICATE_PATH, RESULT_TYPE
+        HAVING count = 1 AND RESULT_TYPE != 'REPORT') AS c
+        RIGHT JOIN (
+            SELECT a2.MODEL, b2.`NAME` FROM <include refid="result_info_table"/> AS a2 CROSS JOIN <include refid="tester_table"/> AS b2
+            <where>
+                <if test="model != null and model != ''">
+                    AND MODEL = #{model}
+                </if>
+                <include refid="test_time_tester_name_computer_name2"/>
+            </where>
+            GROUP BY a2.MODEL, b2.`NAME`) AS d ON c.`NAME` = d.`NAME` AND c.MODEL = d.MODEL
+        GROUP BY d.`NAME`, d.MODEL
+    </select>
+
+    <!-- 以下报告文件缺失对应的结果文件 -->
+    <select id="missProcess" resultType="com.cesi.datalogscheduler.entity.ResultInfo">
+        SELECT a.*, b.NAME AS TESTER_NAME, COUNT( 1 ) AS cnt FROM <include refid="result_info_table"/> AS a JOIN <include refid="tester_table"/> AS b ON a.TESTER_NAME_ABBR = b.ABBREVIATION
+        <where>
+            <include refid="test_time_tester_name_computer_name"/>
+        </where>
+        GROUP BY MODEL, BATCH, AGING_PHASE, AGING_END_TIME, TEST_BEGIN_TIME, TEMPERATURE, JD_GROUP, TESTER_NAME_ABBR, CHIP_ID, PATH, DUPLICATE_PATH, RESULT_TYPE
+        HAVING cnt = 1 AND RESULT_TYPE != 'PROCESS'
+    </select>
+
+    <select id="missProcessCount" resultType="com.cesi.datalogscheduler.entity.ResultCount">
+        SELECT COUNT(c.count) AS count, d.MODEL, d.`NAME` FROM (
+        SELECT COUNT( 1 ) AS count, MODEL, RESULT_TYPE, b1.NAME FROM <include refid="result_info_table"/> AS a1 JOIN <include refid="tester_table"/> AS b1 ON a1.TESTER_NAME_ABBR = b1.ABBREVIATION
+        <where>
+            <if test="model != null and model != ''">
+                AND MODEL = #{model}
+            </if>
+            <include refid="test_time_tester_name_computer_name1"/>
+        </where>
+        GROUP BY MODEL, BATCH, AGING_PHASE, AGING_END_TIME, TEST_BEGIN_TIME, TEMPERATURE, JD_GROUP, TESTER_NAME_ABBR, CHIP_ID, PATH, DUPLICATE_PATH, RESULT_TYPE
+        HAVING count = 1 AND RESULT_TYPE != 'PROCESS') AS c
+        RIGHT JOIN (
+        SELECT a2.MODEL, b2.`NAME` FROM <include refid="result_info_table"/> AS a2 CROSS JOIN <include refid="tester_table"/> AS b2
+        <where>
+            <if test="model != null and model != ''">
+                AND MODEL = #{model}
+            </if>
+            <include refid="test_time_tester_name_computer_name2"/>
+        </where>
+        GROUP BY a2.MODEL, b2.`NAME`) AS d ON c.`NAME` = d.`NAME` AND c.MODEL = d.MODEL
+        GROUP BY d.`NAME`, d.MODEL
+    </select>
+
+    <select id="findDuplicate" parameterType="com.cesi.datalogscheduler.entity.ResultInfo" resultType="com.cesi.datalogscheduler.entity.ResultInfo">
+        SELECT * FROM <include refid="result_info_table"/>
+        <where>
+            MODEL = #{resultInfo.model} AND BATCH = #{resultInfo.batch} AND AGING_PHASE = #{resultInfo.agingPhase} AND CHIP_ID = #{resultInfo.chipId} AND RESULT_TYPE = #{resultInfo.resultType}
+            <if test="resultInfo.temperature != null">
+                AND TEMPERATURE = #{resultInfo.temperature}
+            </if>
+            <if test="resultInfo.jdGroup != null">
+                AND JD_GROUP = #{resultInfo.jdGroup}
+            </if>
+        </where>
+        ORDER BY ID ASC
+    </select>
+
+    <select id="multiFindDuplicate" parameterType="com.cesi.datalogscheduler.entity.ResultInfo" resultType="com.cesi.datalogscheduler.entity.ResultInfo">
+        SELECT * FROM <include refid="result_info_table"/>
+        <where>
+            <foreach collection="list" item="item" open="(" close=")" separator=") OR (" nullable="true">
+                MODEL = #{item.model} AND BATCH = #{item.batch} AND AGING_PHASE = #{item.agingPhase} AND CHIP_ID = #{item.chipId} AND RESULT_TYPE = #{item.resultType}
+                <if test="item.temperature != null">
+                    AND TEMPERATURE = #{item.temperature}
+                </if>
+                <if test="item.jdGroup != null">
+                    AND JD_GROUP = #{item.jdGroup}
+                </if>
+            </foreach>
+        </where>
+    </select>
+</mapper>

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- https://logging.apache.org/log4j/2.x/manual/index.html -->
+<Configuration>
+    <Properties>
+        <Property name="LOG_PATTERN">
+            %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
+        </Property>
+        <Property name="FILE_PATH">
+            /var/log/cesi/datalog_scheduler
+        </Property>
+    </Properties>
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+            <ThresholdFilter level="info" onMatch="ACCEPT" onMismatch="DENY"/>
+        </Console>
+
+        <RollingFile name="RollingFile" fileName="${FILE_PATH}/info.log" filePattern="${FILE_PATH}/INFO-%d{yyyy-MM}_%i.log.gz">
+            <Filters>
+                <ThresholdFilter level="info" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="10MB"/>
+            </Policies>
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+        </RollingFile>
+
+        <Socket name="Socket" host="localhost" port="9001" protocol="UDP">
+            <!--<JsonLayout properties="true"/>-->
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+            <Filters>
+                <ThresholdFilter level="info" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
+        </Socket>
+    </Appenders>
+    <Loggers>
+        <Root level="info">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="RollingFile"/>
+            <AppenderRef ref="Socket"/>
+        </Root>
+    </Loggers>
+</Configuration>

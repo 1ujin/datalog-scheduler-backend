@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cesi.datalogscheduler.mapper.ConnectionInfoMapper">
+    <sql id="connection_info_table">
+        cesi.connection_info
+    </sql>
+    
+    <select id="findAll" resultType="com.cesi.datalogscheduler.entity.ConnectionInfo">
+        SELECT *, INET_NTOA(HOST_INT) as HOST
+        FROM <include refid="connection_info_table"/>
+    </select>
+
+    <insert id="insert" keyColumn="id" useGeneratedKeys="true" parameterType="com.cesi.datalogscheduler.entity.ConnectionInfo">
+        INSERT INTO <include refid="connection_info_table"/>(HOST_INT, PORT, USERNAME, PASSWORD, PREFIX_REMOTE_PATH, PREFIX_LOCAL_PATH, PREFIX_VOLUME_PATH, `SYSTEM`, COMPUTER_NAME, SYNC)
+        <foreach collection="list" item="item" separator="),(" open="VALUES (" close=")" nullable="true">
+            <if test="item != null and item.host != null and item.port != null and item.username != null and item.password != null and item.prefixRemotePath != null and item.prefixLocalPath != null and item.prefixVolumePath and item.system != null and item.computerName != null and item.sync != null">
+                INET_ATON(#{item.host}), #{item.port}, #{item.username}, #{item.password}, #{item.prefixRemotePath}, #{item.prefixLocalPath}, #{item.prefixVolumePath}, #{item.system}, #{item.computerName}, #{item.sync}
+            </if>
+        </foreach>
+    </insert>
+
+    <delete id="delete" parameterType="com.cesi.datalogscheduler.entity.ConnectionInfo">
+        DELETE FROM <include refid="connection_info_table"/>
+        WHERE ID IN
+        <if test="list != null and list.size() != 0">
+            <foreach collection="list" item="item" separator="," open="(" close=")" nullable="true">
+                <if test="item != null and item.id != null">
+                    #{item.id}
+                </if>
+            </foreach>
+        </if>
+    </delete>
+
+    <update id="update" keyColumn="id" useGeneratedKeys="true" parameterType="com.cesi.datalogscheduler.entity.ConnectionInfo">
+        <foreach collection="list" item="item" separator=";" close=";" nullable="true">
+            <if test="item != null and item.id != null">
+                UPDATE <include refid="connection_info_table"/>
+                <set>
+                    <if test="item.host != null and item.host != ''">
+                        HOST_INT=INET_ATON(#{item.host}),
+                    </if>
+                    <if test="item.port != null">
+                        PORT=#{item.port},
+                    </if>
+                    <if test="item.username != null and item.username != ''">
+                        USERNAME=#{item.username},
+                    </if>
+                    <if test="item.password != null and item.password != ''">
+                        PASSWORD=#{item.password},
+                    </if>
+                    <if test="item.prefixRemotePath != null and item.prefixRemotePath != ''">
+                        PREFIX_REMOTE_PATH=#{item.prefixRemotePath},
+                    </if>
+                    <if test="item.prefixLocalPath != null and item.prefixLocalPath != ''">
+                        PREFIX_LOCAL_PATH=#{item.prefixLocalPath},
+                    </if>
+                    <if test="item.prefixVolumePath != null and item.prefixVolumePath != ''">
+                        PREFIX_VOLUME_PATH=#{item.prefixVolumePath},
+                    </if>
+                    <if test="item.system != null and item.system != ''">
+                        `SYSTEM`=#{item.system},
+                    </if>
+                    <if test="item.computerName != null and item.computerName != ''">
+                        COMPUTER_NAME=#{item.computerName},
+                    </if>
+                    <if test="item.sync != null">
+                        SYNC=#{item.sync},
+                    </if>
+                </set>
+                <where>
+                    <if test="item.id != null">
+                        ID=#{item.id}
+                    </if>
+                </where>
+            </if>
+        </foreach>
+    </update>
+</mapper>
