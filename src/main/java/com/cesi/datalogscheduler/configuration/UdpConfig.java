@@ -15,11 +15,14 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
 public class UdpConfig {
+    private static final AtomicReference<WebSocketSession> ATOMIC_REFERENCE = new AtomicReference<>();
+
     @Value("${udp.port.log:9001}")
     private int port;
 
@@ -44,10 +47,15 @@ public class UdpConfig {
         smt.convertAndSend("/topic/log", message);
         for (WebSocketSession session : WebSocketSessionUtil.SESSION_MAP.values()) {
             try {
+                // 加锁 如果自旋锁已经是session了，说明有别的线程在占用，循环等待
+                while (!ATOMIC_REFERENCE.compareAndSet(null, session));
                 session.sendMessage(new TextMessage(message));
             } catch (IOException e) {
                 e.printStackTrace();
                 log.error("WebSocket发送消息失败: [ID=" + session.getId() + ", message=" + message + "]", e);
+            } finally {
+                // 解锁 当前线程使用结束，自旋锁恢复null
+                ATOMIC_REFERENCE.compareAndSet(session, null);
             }
         }
     }
