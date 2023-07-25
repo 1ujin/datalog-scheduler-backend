@@ -9,9 +9,9 @@ import java.util.List;
 
 @Mapper
 public interface ResultInfoMapper {
-    List<ResultInfo> findAll(int limit, int offset, String beginDate, String endDate, List<String> testerNames, String computerName);
+    List<ResultInfo> findAll(int limit, int offset, String beginDate, String endDate, List<String> testerNames, List<String> models, String chipId);
 
-    int countAll(String beginDate, String endDate, List<String> testerNames, String computerName);
+    int countAll(String beginDate, String endDate, List<String> testerNames, List<String> models, String chipId);
 
     int insert(ResultInfo resultInfo);
 

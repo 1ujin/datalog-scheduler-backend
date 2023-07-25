@@ -24,10 +24,11 @@ public class ResultInfoController {
             @RequestParam(required = false) String beginDate,
             @RequestParam(required = false) String endDate,
             @RequestParam(required = false) List<String> testerNames,
-            @RequestParam(required = false) String computerName) {
+            @RequestParam(required = false) List<String> models,
+            @RequestParam(required = false) String chipId) {
         int offset = (page - 1) * limit;
-        int count = resultInfoMapper.countAll(beginDate, endDate, testerNames, computerName);
-        List<ResultInfo> list = resultInfoMapper.findAll(limit, offset, beginDate, endDate, testerNames, computerName);
+        int count = resultInfoMapper.countAll(beginDate, endDate, testerNames, models, chipId);
+        List<ResultInfo> list = resultInfoMapper.findAll(limit, offset, beginDate, endDate, testerNames, models, chipId);
         return ResponseWrapper.ok().setData(list).put("count", count);
     }
 

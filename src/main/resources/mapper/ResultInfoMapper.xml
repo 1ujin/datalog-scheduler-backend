@@ -30,13 +30,37 @@
         </if>
     </sql>
 
+    <!-- 测试时间 + 测试人员姓名 + 型号 -->
+    <sql id="test_time_tester_name_model_id">
+        <include refid="test_begin_time_scope"/>
+        <if test="testerNames != null and testerNames.size() != 0">
+            AND b.NAME IN
+            <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
+                <if test="testerNames != null and testerName != ''">
+                    #{testerName}
+                </if>
+            </foreach>
+        </if>
+        <if test="models != null and models.size() != 0">
+            AND a.MODEL IN
+            <foreach collection="models" item="model" open="(" close=")" separator="," nullable="true">
+                <if test="models != null and model != ''">
+                    #{model}
+                </if>
+            </foreach>
+        </if>
+        <if test="chipId != null and chipId != ''">
+            AND a.CHIP_ID LIKE CONCAT('%', #{chipId}, '%')
+        </if>
+    </sql>
+
     <!-- 测试时间 + 测试人员姓名 + 机台编号 -->
     <sql id="test_time_tester_name_computer_name">
         <include refid="test_begin_time_scope"/>
         <if test="testerNames != null and testerNames.size() != 0">
             AND b.NAME IN
             <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
-                <if test="testerNames != null and testerName != ''">
+                <if test="testerName != null and testerName != ''">
                     #{testerName}
                 </if>
             </foreach>
@@ -51,7 +75,7 @@
         <if test="testerNames != null and testerNames.size() != 0">
             AND b1.NAME IN
             <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
-                <if test="testerNames != null and testerName != ''">
+                <if test="testerName != null and testerName != ''">
                     #{testerName}
                 </if>
             </foreach>
@@ -66,7 +90,7 @@
         <if test="testerNames != null and testerNames.size() != 0">
             AND b2.NAME IN
             <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
-                <if test="testerNames != null and testerName != ''">
+                <if test="testerName != null and testerName != ''">
                     #{testerName}
                 </if>
             </foreach>
@@ -87,7 +111,7 @@
         FROM <include refid="result_info_table"/> AS a
                  JOIN <include refid="tester_table"/> AS b ON a.TESTER_NAME_ABBR = b.ABBREVIATION
         <where>
-            <include refid="test_time_tester_name_computer_name"/>
+            <include refid="test_time_tester_name_model_id"/>
         </where>
         ORDER BY a.CREATE_TIME DESC
         LIMIT #{limit} OFFSET #{offset}
@@ -98,7 +122,7 @@
         FROM <include refid="result_info_table"/> AS a
                  JOIN <include refid="tester_table"/> AS b ON a.TESTER_NAME_ABBR = b.ABBREVIATION
         <where>
-            <include refid="test_time_tester_name_computer_name"/>
+            <include refid="test_time_tester_name_model_id"/>
         </where>
     </select>
 
@@ -125,7 +149,7 @@
                     <if test="testerNames != null and testerNames.size() != 0">
                         AND `NAME` IN
                         <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
-                            <if test="testerNames != null and testerName != ''">
+                            <if test="testerName != null and testerName != ''">
                                 #{testerName}
                             </if>
                         </foreach>
@@ -159,7 +183,7 @@
                     <if test="testerNames != null and testerNames.size() != 0">
                         AND `NAME` IN
                         <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
-                            <if test="testerNames != null and testerName != ''">
+                            <if test="testerName != null and testerName != ''">
                                 #{testerName}
                             </if>
                         </foreach>
@@ -193,7 +217,7 @@
                     <if test="testerNames != null and testerNames.size() != 0">
                         AND `NAME` IN
                         <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
-                            <if test="testerNames != null and testerName != ''">
+                            <if test="testerName != null and testerName != ''">
                                 #{testerName}
                             </if>
                         </foreach>
@@ -254,7 +278,7 @@
             <if test="testerNames != null and testerNames.size() != 0">
                 AND d.`NAME` IN
                 <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
-                    <if test="testerNames != null and testerName != ''">
+                    <if test="testerName != null and testerName != ''">
                         #{testerName}
                     </if>
                 </foreach>
@@ -292,7 +316,7 @@
             <if test="testerNames != null and testerNames.size() != 0">
                 AND d.`NAME` IN
                 <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
-                    <if test="testerNames != null and testerName != ''">
+                    <if test="testerName != null and testerName != ''">
                         #{testerName}
                     </if>
                 </foreach>
@@ -332,7 +356,7 @@
             <if test="testerNames != null and testerNames.size() != 0">
                 AND d.`NAME` IN
                 <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
-                    <if test="testerNames != null and testerName != ''">
+                    <if test="testerName != null and testerName != ''">
                         #{testerName}
                     </if>
                 </foreach>
@@ -372,7 +396,7 @@
             <if test="testerNames != null and testerNames.size() != 0">
                 AND d.`NAME` IN
                 <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
-                    <if test="testerNames != null and testerName != ''">
+                    <if test="testerName != null and testerName != ''">
                         #{testerName}
                     </if>
                 </foreach>
@@ -431,7 +455,7 @@
                 <if test="testerNames != null and testerNames.size() != 0">
                     AND d.`NAME` IN
                     <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
-                        <if test="testerNames != null and testerName != ''">
+                        <if test="testerName != null and testerName != ''">
                             #{testerName}
                         </if>
                     </foreach>
@@ -492,7 +516,7 @@
                 <if test="testerNames != null and testerNames.size() != 0">
                     AND d.`NAME` IN
                     <foreach collection="testerNames" item="testerName" open="(" close=")" separator="," nullable="true">
-                        <if test="testerNames != null and testerName != ''">
+                        <if test="testerName != null and testerName != ''">
                             #{testerName}
                         </if>
                     </foreach>
