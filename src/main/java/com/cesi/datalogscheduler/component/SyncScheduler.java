@@ -37,6 +37,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -89,12 +90,45 @@ public class SyncScheduler {
     private final String projectName = DatalogSchedulerApplication.class.getName();
 
     /**
+     * 信号量
+     */
+    private final Semaphore semaphore = new Semaphore(1);
+
+    /**
+     * 定时迁移并分析
+     */
+    public void scheduledSync() {
+        if (isSync.get()) {
+            try {
+                log.info("获取信号量许可，当前可用许可数量：" + semaphore.availablePermits());
+                semaphore.acquire();
+                sync();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+                log.error("线程中断异常", e);
+            }
+        }
+    }
+
+    /**
+     * 立即迁移并分析
+     *
+     * @return 启动线程结果
+     */
+    public boolean immediateSync() {
+        if (semaphore.tryAcquire()) {
+            new Thread(this::sync).start();
+            return true;
+        } else {
+            log.info("获取信号量许可失败，当前可用许可数量：" + semaphore.availablePermits());
+            return false;
+        }
+    }
+
+    /**
      * 迁移并分析
      */
     public void sync() {
-        if (!isSync.get()) {
-            return;
-        }
         log.info("开始同步");
         // 形如 /home/demo/2910_DATA/202301/laolianhou/20230322/20230323_25C_XXX/1234.txt
         List<ConnectionInfo> connections = connectionInfoMapper.findAll();
@@ -385,6 +419,8 @@ public class SyncScheduler {
             log.error("主线程中断失败", e);
         } finally {
             exec.shutdownNow();
+            semaphore.release();
+            log.info("已释放信号量许可，当前可用许可数量：" + semaphore.availablePermits());
         }
     }
 

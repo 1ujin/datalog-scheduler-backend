@@ -17,6 +17,8 @@ import java.time.format.DateTimeFormatter;
 public class SyncController {
     private final SyncScheduledTaskService service;
 
+    private final SyncScheduler syncScheduler;
+
     @GetMapping("/open")
     public ResponseWrapper open() {
         SyncScheduler.openSync();
@@ -60,5 +62,19 @@ public class SyncController {
         String time = String.format("%02d:%02d:%02d", Integer.valueOf(arr[2]), Integer.valueOf(arr[1]), Integer.valueOf(arr[0]));
         log.info("当前定时[" + time + "]");
         return ResponseWrapper.ok().setData(time);
+    }
+
+    @GetMapping("/active-count")
+    public ResponseWrapper activeCount() {
+        return ResponseWrapper.ok().setData(service.activeCount());
+    }
+
+    @GetMapping("/immediate")
+    public ResponseWrapper immediate() {
+        Integer count = service.activeCount();
+        if (count != null && count > 0 || !syncScheduler.immediateSync()) {
+            return ResponseWrapper.error().setMsg("已经有同步任务正在进行");
+        }
+        return ResponseWrapper.ok();
     }
 }

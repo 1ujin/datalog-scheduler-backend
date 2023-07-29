@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.scheduling.config.CronTask;
 import org.springframework.scheduling.config.ScheduledTask;
 import org.springframework.stereotype.Service;
@@ -30,7 +31,7 @@ public class SyncScheduledTaskService {
 
     public Boolean schedule(String cron) {
         if (syncRunnable == null) {
-            syncRunnable = scheduler::sync; // eta-conversion: syncRunnable = () -> { scheduler.sync(); };
+            syncRunnable = scheduler::scheduledSync; // eta-conversion: syncRunnable = () -> { scheduler.sync(); };
         }
         Boolean result = registrar.addCronTask(NAME, cron, syncRunnable);
         log.info("定时任务[" + NAME + "]添加" + (result ? "成功" : "失败"));
@@ -59,5 +60,18 @@ public class SyncScheduledTaskService {
     private void initDefaultTask() {
         log.info("默认定时: " + defaultCron);
         schedule(defaultCron);
+    }
+
+    /**
+     * 获取当前定时任务中正在执行的线程数量
+     *
+     * @return 线程数量
+     */
+    public Integer activeCount() {
+        ThreadPoolTaskScheduler taskScheduler = (ThreadPoolTaskScheduler) registrar.getScheduler();
+        if (taskScheduler == null) {
+            return null;
+        }
+        return taskScheduler.getActiveCount();
     }
 }
