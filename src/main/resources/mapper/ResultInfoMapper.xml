@@ -2,13 +2,13 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.cesi.datalogscheduler.mapper.ResultInfoMapper">
     <sql id="result_info_table">
-        cesi.result_info
+        <include refid="com.cesi.datalogscheduler.mapper.IncludingMapper.database"/>.result_info
     </sql>
     <sql id="tester_table">
-        cesi.tester
+        <include refid="com.cesi.datalogscheduler.mapper.IncludingMapper.database"/>.tester
     </sql>
     <sql id="calendar_table">
-        cesi.calendar
+        <include refid="com.cesi.datalogscheduler.mapper.IncludingMapper.database"/>.calendar
     </sql>
     <!-- 入库时间范围 -->
     <sql id="create_time_scope">
