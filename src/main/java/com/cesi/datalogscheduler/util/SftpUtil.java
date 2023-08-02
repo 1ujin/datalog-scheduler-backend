@@ -88,14 +88,14 @@ public class SftpUtil {
      */
     public boolean upload(String src, String dst) {
         boolean successed = false;
-        try {
+        try (FileInputStream fis = new FileInputStream(src)) {
             Path parent = Path.of(dst).getParent();
             if (createDir(parent.toString())) {
-                channelThreadLocal.get().put(new FileInputStream(src), dst);
+                channelThreadLocal.get().put(fis, dst);
                 successed = true;
             }
-        } catch (SftpException | FileNotFoundException e) {
-            log.error(dst + "文件上传异常", e);
+        } catch (SftpException | IOException e) {
+            log.error("文件上传异常，文件路径：" + src + " -> " + dst, e);
         }
         return successed;
     }
@@ -206,6 +206,7 @@ public class SftpUtil {
      */
     public boolean download(String src, String dst) {
         boolean successed = false;
+        FileOutputStream fos = null;
         try {
             Path dir = Path.of(dst).getParent();
             if (!Files.exists(dir)) {
@@ -215,10 +216,20 @@ public class SftpUtil {
                     log.error("创建路径失败: " + dir, e);
                 }
             }
-            channelThreadLocal.get().get(src, new FileOutputStream(dst));
+            fos = new FileOutputStream(dst);
+            channelThreadLocal.get().get(src, fos);
             successed = true;
-        } catch (SftpException | FileNotFoundException e) {
-            log.error("下载文件失败", e);
+        } catch (SftpException | IOException e) {
+            log.error("下载文件失败，文件路径：" + src + " -> " + dst, e);
+        } finally {
+            if (fos != null) {
+                try {
+                    fos.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    log.error("文件关闭失败，文件路径：" + dst, e);
+                }
+            }
         }
         return successed;
     }
