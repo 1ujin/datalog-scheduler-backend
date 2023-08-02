@@ -4,7 +4,6 @@ import com.jcraft.jsch.*;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -12,8 +11,10 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
+import java.util.function.BiFunction;
 
 @Slf4j
+@SuppressWarnings("unused")
 public class SftpUtil {
     private final ThreadLocal<Session> sessionThreadLocal = new ThreadLocal<>();
     private final ThreadLocal<ChannelSftp> channelThreadLocal = new ThreadLocal<>();
@@ -147,9 +148,8 @@ public class SftpUtil {
             SftpATTRS sftpATTRS = channelThreadLocal.get().lstat(directory);
             return sftpATTRS.isDir();
         } catch (SftpException e) {
-            e.printStackTrace();
+            return false;
         }
-        return false;
     }
 
     /**
@@ -239,9 +239,19 @@ public class SftpUtil {
     }
 
     public void rmdirRecursively(String remoteDir) {
+        rmdirRecursively(remoteDir, null);
+    }
+
+    public void rmdirRecursively(String remoteDir, BiFunction<String, ChannelSftp, Boolean> filter) {
         remoteDir = remoteDir.replace("\\", "/");
         try {
             ChannelSftp channel = channelThreadLocal.get();
+            if (filter != null && !filter.apply(remoteDir, channel)) {
+                return;
+            }
+            if (!channel.stat(remoteDir).isDir()) {
+                channel.rm(remoteDir);
+            }
             if (channel.stat(remoteDir).isDir()) {
                 @SuppressWarnings("unchecked")
                 Vector<ChannelSftp.LsEntry> dirList = channel.ls(remoteDir);
@@ -249,14 +259,11 @@ public class SftpUtil {
                     if (".".equals(entry.getFilename()) || "..".equals(entry.getFilename())) {
                         continue;
                     }
-                    if (entry.getAttrs().isDir()) {
-                        rmdirRecursively(Path.of(remoteDir, entry.getFilename()).toString().replace("\\", "/"));
-                    } else {
-                        channel.rm(Path.of(remoteDir, entry.getFilename()).toString().replace("\\", "/"));
-                    }
+                    rmdirRecursively(Path.of(remoteDir, entry.getFilename()).toString().replace("\\", "/"), filter);
                 }
-                // channel.cd("..");
-                channel.rmdir(remoteDir);
+                if (channel.ls(remoteDir).size() <= 2) {
+                    channel.rmdir(remoteDir);
+                }
             }
         } catch (SftpException e) {
             log.error("删除目录失败: " + remoteDir, e);

@@ -18,6 +18,7 @@ import com.hierynomus.smbj.auth.AuthenticationContext;
 import com.hierynomus.smbj.connection.Connection;
 import com.hierynomus.smbj.session.Session;
 import com.hierynomus.smbj.share.DiskShare;
+import com.jcraft.jsch.SftpException;
 import jcifs.smb1.smb1.NtlmPasswordAuthentication;
 import jcifs.smb1.smb1.SmbException;
 import jcifs.smb1.smb1.SmbFile;
@@ -40,6 +41,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -275,7 +277,25 @@ public class SyncScheduler {
                     // 删除
                     if (removedFailure == 0 && !filenameList.isEmpty()) {
                         log.info("删除路径下所有内容");
-                        sftp.rmdirRecursively(connect.getPrefixRemotePath());
+                        // 先删除所有已复制的文件
+                        for (String delFilename : filenameList) {
+                            try {
+                                sftp.getChannel().rm(delFilename);
+                            } catch (SftpException e) {
+                                e.printStackTrace();
+                                log.error("删除路径失败: " + delFilename, e);
+                            }
+                        }
+                        // 再删除所有空目录
+                        sftp.rmdirRecursively(connect.getPrefixRemotePath(), (s, c) -> {
+                            try {
+                                return c.stat(s).isDir();
+                            } catch (SftpException e) {
+                                e.printStackTrace();
+                                log.error("判断路径类型失败：" + s, e);
+                            }
+                            return false;
+                        });
                         sftp.createDir(connect.getPrefixRemotePath());
                     }
                     // 断开连接
@@ -372,11 +392,16 @@ public class SyncScheduler {
                         }
                         if (removedFailure == 0 && !filePathList.isEmpty()) {
                             log.info("删除路径下所有内容: " + share);
+                            // 先删除所有已复制的文件
+                            for (Path delFile : filePathList) {
+                                Files.deleteIfExists(delFile);
+                            }
+                            // 再删除所有空目录
                             paths = Files.walk(share);
-                            paths.filter(p -> !p.equals(share)).sorted(Comparator.reverseOrder()).forEach(path -> {
+                            paths.filter(p -> !p.equals(share) && Files.isDirectory(p)).sorted(Comparator.reverseOrder()).forEach(path -> {
                                 try {
                                     if (!Files.deleteIfExists(path)) {
-                                        log.error("删除路径失败: " + path.toString().replace("\\", "/"));
+                                        log.error("删除路径失败，路径不为空: " + path.toString().replace("\\", "/"));
                                     }
                                 } catch (IOException e) {
                                     log.error("删除路径失败: " + path.toString().replace("\\", "/"), e);
@@ -570,11 +595,21 @@ public class SyncScheduler {
                 }
                 if (removedFailure == 0 && !filenameList.isEmpty()) {
                     log.info("删除路径下所有内容: " + subFolder);
+                    // 先删除所有已复制的文件
+                    for (String delFilename : filenameList) {
+                        try {
+                            diskShare.rm(delFilename);
+                        } catch (SMBApiException e) {
+                            e.printStackTrace();
+                            log.error("删除路径失败: [" + delFilename + "]", e);
+                        }
+                    }
+                    // 再删除所有空目录
                     for (FileIdBothDirectoryInformation f : diskShare.list(subFolder)) {
                         if (".".equals(f.getFileName()) || "..".equals(f.getFileName())) {
                             continue;
                         }
-                        removeFileRecursively(subFolder + "/" + f.getFileName(), diskShare);
+                        // removeFileRecursively(subFolder + "/" + f.getFileName(), diskShare, d -> FileAttributes.FILE_ATTRIBUTE_DIRECTORY.getValue() == (d.getFileAttributes() & FileAttributes.FILE_ATTRIBUTE_DIRECTORY.getValue()));
                         try {
                             diskShare.rmdir(subFolder + "/" + f.getFileName() + "/", true);
                         } catch (SMBApiException e) {
@@ -721,12 +756,25 @@ public class SyncScheduler {
                 }
                 if (removedFailure == 0 && !smbFileList.isEmpty()) {
                     log.info("删除路径下所有内容: " + remoteFile);
-                    for (SmbFile delFile : remoteFile.listFiles()) {
+                    // 先删除所有已复制的文件
+                    for (SmbFile delFile : smbFileList) {
                         try {
                             delFile.delete();
                         } catch (SmbException e) {
-                            log.error("删除路径失败", e);
+                            log.error("删除路径失败：" + delFile.getName(), e);
                         }
+                    }
+                    // 再删除所有空目录
+                    for (SmbFile delFile : remoteFile.listFiles()) {
+                        removeFileRecursively(delFile, f -> {
+                            try {
+                                return f.isDirectory();
+                            } catch (SmbException e) {
+                                e.printStackTrace();
+                                log.error("获取路径属性失败：" + f.getName(), e);
+                            }
+                            return false;
+                        });
                     }
                 }
             }
@@ -739,7 +787,6 @@ public class SyncScheduler {
     public static void fillSmbFileListRecursively(SmbFile smbFile, List<SmbFile> list) {
         try {
             if (smbFile.isFile()) {
-                System.out.println(list.size());
                 list.add(smbFile);
             } else {
                 for (SmbFile child : smbFile.listFiles()) {
@@ -766,8 +813,15 @@ public class SyncScheduler {
     }
 
     public static void removeFileRecursively(String path, DiskShare share) {
+        removeFileRecursively(path, share, null);
+    }
+
+    public static void removeFileRecursively(String path, DiskShare share, Function<FileIdBothDirectoryInformation, Boolean> filter) {
         for (FileIdBothDirectoryInformation f : share.list(path)) {
             if (".".equals(f.getFileName()) || "..".equals(f.getFileName())) {
+                continue;
+            }
+            if (filter != null && !filter.apply(f)) {
                 continue;
             }
             String nextPath = path + "/" + f.getFileName();
@@ -775,11 +829,58 @@ public class SyncScheduler {
                 try {
                     share.rm(nextPath);
                 } catch (SMBApiException e) {
-                    log.error("删除路径失败: [" + nextPath + "]", e);
+                    log.error("删除文件失败: [" + nextPath + "]", e);
                 }
             } else if (FileAttributes.FILE_ATTRIBUTE_DIRECTORY.getValue() == (f.getFileAttributes() & FileAttributes.FILE_ATTRIBUTE_DIRECTORY.getValue())) {
-                removeFileRecursively(nextPath, share);
+                removeFileRecursively(nextPath, share, filter);
+                if (share.list(nextPath).size() <= 2) {
+                    try {
+                        share.rmdir(nextPath, false);
+                    } catch (SMBApiException e) {
+                        log.error("删除路径失败: [" + nextPath + "]", e);
+                    }
+                }
             }
+        }
+    }
+
+    @SuppressWarnings("unused")
+    public static void removeFileRecursively(SmbFile smbFile) {
+        removeFileRecursively(smbFile, null);
+    }
+
+    public static void removeFileRecursively(SmbFile smbFile, Function<SmbFile, Boolean> filter) {
+        if (filter != null && !filter.apply(smbFile)) {
+            return;
+        }
+        try {
+            if (smbFile.isDirectory()) {
+                for (SmbFile child : smbFile.listFiles()) {
+                    removeFileRecursively(child, filter);
+                }
+            }
+            if (smbFile.isFile()) {
+                try {
+                    smbFile.delete();
+                } catch (SmbException e) {
+                    e.printStackTrace();
+                    log.error("删除路径失败：" + smbFile.getName(), e);
+                }
+            }
+            if (smbFile.isDirectory()) {
+                SmbFile[] smbFiles = smbFile.listFiles();
+                if (smbFiles.length == 0) {
+                    try {
+                        smbFile.delete();
+                    } catch (SmbException e) {
+                        e.printStackTrace();
+                        log.error("删除路径失败：" + smbFile.getName(), e);
+                    }
+                }
+            }
+        } catch (SmbException e) {
+            e.printStackTrace();
+            log.error("获取路径属性失败：" + smbFile.getName(), e);
         }
     }
 
