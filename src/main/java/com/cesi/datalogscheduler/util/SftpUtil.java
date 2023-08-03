@@ -279,11 +279,14 @@ public class SftpUtil {
             } else {
                 @SuppressWarnings("unchecked")
                 Vector<ChannelSftp.LsEntry> parent = channel.ls(path);
-                for (ChannelSftp.LsEntry child : parent) {
-                    if (".".equals(child.getFilename()) || "..".equals(child.getFilename())) {
-                        continue;
+                // 只遍历非空文件夹
+                if (parent.size() > 2) {
+                    for (ChannelSftp.LsEntry child : parent) {
+                        if (".".equals(child.getFilename()) || "..".equals(child.getFilename())) {
+                            continue;
+                        }
+                        lsRecursively(Path.of(path, child.getFilename()).toString().replace("\\", "/"), list);
                     }
-                    lsRecursively(Path.of(path, child.getFilename()).toString().replace("\\", "/"), list);
                 }
             }
             return list;

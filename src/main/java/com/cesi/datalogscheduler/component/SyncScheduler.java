@@ -789,8 +789,12 @@ public class SyncScheduler {
             if (smbFile.isFile()) {
                 list.add(smbFile);
             } else {
-                for (SmbFile child : smbFile.listFiles()) {
-                    fillSmbFileListRecursively(child, list);
+                SmbFile[] smbFiles = smbFile.listFiles();
+                // 只遍历非空文件夹
+                if (smbFiles.length > 0) {
+                    for (SmbFile child : smbFiles) {
+                        fillSmbFileListRecursively(child, list);
+                    }
                 }
             }
         } catch (SmbException e) {
@@ -799,7 +803,12 @@ public class SyncScheduler {
     }
 
     public static void fillFilenameListRecursively(String path, List<String> list, DiskShare share) {
-        for (FileIdBothDirectoryInformation f : share.list(path)) {
+        // 只遍历非空文件夹
+        List<FileIdBothDirectoryInformation> fs = share.list(path);
+        if (fs.size() <= 2) {
+            return;
+        }
+        for (FileIdBothDirectoryInformation f : fs) {
             if (".".equals(f.getFileName()) || "..".equals(f.getFileName())) {
                 continue;
             }
