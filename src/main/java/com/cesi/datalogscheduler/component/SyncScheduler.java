@@ -287,16 +287,16 @@ public class SyncScheduler {
                             }
                         }
                         // 再删除所有空目录
-                        sftp.rmdirRecursively(connect.getPrefixRemotePath(), (s, c) -> {
-                            try {
-                                return c.stat(s).isDir();
-                            } catch (SftpException e) {
-                                e.printStackTrace();
-                                log.error("判断路径类型失败：" + s, e);
-                            }
-                            return false;
-                        });
-                        sftp.createDir(connect.getPrefixRemotePath());
+                        // sftp.rmdirRecursively(connect.getPrefixRemotePath(), (s, c) -> {
+                        //     try {
+                        //         return c.stat(s).isDir();
+                        //     } catch (SftpException e) {
+                        //         e.printStackTrace();
+                        //         log.error("判断路径类型失败：" + s, e);
+                        //     }
+                        //     return false;
+                        // });
+                        // sftp.createDir(connect.getPrefixRemotePath());
                     }
                     // 断开连接
                     sftp.disconnect();
@@ -397,19 +397,19 @@ public class SyncScheduler {
                                 Files.deleteIfExists(delFile);
                             }
                             // 再删除所有空目录
-                            paths = Files.walk(share);
-                            paths.filter(p -> !p.equals(share) && Files.isDirectory(p)).sorted(Comparator.reverseOrder()).forEach(path -> {
-                                try {
-                                    if (!Files.deleteIfExists(path)) {
-                                        log.error("删除路径失败，路径不为空: " + path.toString().replace("\\", "/"));
-                                    }
-                                } catch (IOException e) {
-                                    log.error("删除路径失败: " + path.toString().replace("\\", "/"), e);
-                                }
-                            });
-                            if (!Files.exists(share)) {
-                                Files.createDirectories(share);
-                            }
+                            // paths = Files.walk(share);
+                            // paths.filter(p -> !p.equals(share) && Files.isDirectory(p)).sorted(Comparator.reverseOrder()).forEach(path -> {
+                            //     try {
+                            //         if (!Files.deleteIfExists(path)) {
+                            //             log.error("删除路径失败，路径不为空: " + path.toString().replace("\\", "/"));
+                            //         }
+                            //     } catch (IOException e) {
+                            //         log.error("删除路径失败: " + path.toString().replace("\\", "/"), e);
+                            //     }
+                            // });
+                            // if (!Files.exists(share)) {
+                            //     Files.createDirectories(share);
+                            // }
                         }
                     } catch (IOException e) {
                         log.error("遍历远程路径失败: " + connect.getPrefixRemotePath().replace("\\", "/"), e);
@@ -605,17 +605,17 @@ public class SyncScheduler {
                         }
                     }
                     // 再删除所有空目录
-                    for (FileIdBothDirectoryInformation f : diskShare.list(subFolder)) {
-                        if (".".equals(f.getFileName()) || "..".equals(f.getFileName())) {
-                            continue;
-                        }
-                        // removeFileRecursively(subFolder + "/" + f.getFileName(), diskShare, d -> FileAttributes.FILE_ATTRIBUTE_DIRECTORY.getValue() == (d.getFileAttributes() & FileAttributes.FILE_ATTRIBUTE_DIRECTORY.getValue()));
-                        try {
-                            diskShare.rmdir(subFolder + "/" + f.getFileName() + "/", true);
-                        } catch (SMBApiException e) {
-                            log.error("删除路径失败: [" + subFolder + "/" + f.getFileName() + "]", e);
-                        }
-                    }
+                    // for (FileIdBothDirectoryInformation f : diskShare.list(subFolder)) {
+                    //     if (".".equals(f.getFileName()) || "..".equals(f.getFileName())) {
+                    //         continue;
+                    //     }
+                    //     // removeFileRecursively(subFolder + "/" + f.getFileName(), diskShare, d -> FileAttributes.FILE_ATTRIBUTE_DIRECTORY.getValue() == (d.getFileAttributes() & FileAttributes.FILE_ATTRIBUTE_DIRECTORY.getValue()));
+                    //     try {
+                    //         diskShare.rmdir(subFolder + "/" + f.getFileName() + "/", true);
+                    //     } catch (SMBApiException e) {
+                    //         log.error("删除路径失败: [" + subFolder + "/" + f.getFileName() + "]", e);
+                    //     }
+                    // }
                 }
             }
         } catch (IOException e) {
@@ -765,17 +765,17 @@ public class SyncScheduler {
                         }
                     }
                     // 再删除所有空目录
-                    for (SmbFile delFile : remoteFile.listFiles()) {
-                        removeFileRecursively(delFile, f -> {
-                            try {
-                                return f.isDirectory();
-                            } catch (SmbException e) {
-                                e.printStackTrace();
-                                log.error("获取路径属性失败：" + f.getName(), e);
-                            }
-                            return false;
-                        });
-                    }
+                    // for (SmbFile delFile : remoteFile.listFiles()) {
+                    //     removeFileRecursively(delFile, f -> {
+                    //         try {
+                    //             return f.isDirectory();
+                    //         } catch (SmbException e) {
+                    //             e.printStackTrace();
+                    //             log.error("获取路径属性失败：" + f.getName(), e);
+                    //         }
+                    //         return false;
+                    //     });
+                    // }
                 }
             }
         } catch (IOException e) {
