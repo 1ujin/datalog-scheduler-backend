@@ -15,10 +15,8 @@ import com.hierynomus.smbj.session.Session;
 import com.hierynomus.smbj.share.DiskShare;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.processing.SupportedAnnotationTypes;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,7 +29,6 @@ import java.util.concurrent.locks.ReentrantLock;
 
 @Slf4j
 @Component
-@Qualifier("aaa")
 @RequiredArgsConstructor
 public class Backupper {
     private static final AtomicBoolean isBackup = new AtomicBoolean(true);
